@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LPQ Stage 8 — Box Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #12111a;
+    color: #e8e4d8;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    padding: 24px 16px 60px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    color: #f5c842;
+    font-size: 1.7em;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 0.85em;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .subtitle b { color: #f5c842; }
+
+  /* Layout reference */
+  .layout-ref {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .ref-block {
+    background: #1c1b2e;
+    border: 1px solid #2e2d4a;
+    border-radius: 10px;
+    padding: 12px 18px;
+    text-align: center;
+  }
+  .ref-block h3 {
+    font-size: 0.72em;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .ref-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 34px);
+    grid-template-rows: repeat(3, 34px);
+    gap: 3px;
+  }
+  .ref-box {
+    background: #2a2940;
+    border: 1px solid #3a3860;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #ccc;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .stats {
+    background: #1c1b2e;
+    border: 1px solid #2e2d4a;
+    border-radius: 8px;
+    padding: 10px 20px;
+    display: flex;
+    gap: 20px;
+  }
+  .stat-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .stat-value { font-size: 1.4em; font-weight: bold; color: #f5c842; }
+  .stat-label { font-size: 0.65em; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+
+  .btn {
+    background: #1c1b2e;
+    color: #e8e4d8;
+    border: 1px solid #3a3860;
+    border-radius: 7px;
+    padding: 9px 18px;
+    cursor: pointer;
+    font-size: 0.88em;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .btn:hover { background: #262540; border-color: #f5c842; }
+  .btn-danger { border-color: #6b2a2a; color: #e88; }
+  .btn-danger:hover { background: #2e1a1a; border-color: #e88; }
+
+  /* Progress bar */
+  .progress-wrap {
+    max-width: 700px;
+    margin: 0 auto 20px;
+    background: #1c1b2e;
+    border-radius: 6px;
+    height: 7px;
+    overflow: hidden;
+    border: 1px solid #2e2d4a;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #f5c842, #e8843a);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 6px;
+  }
+
+  /* Tabs */
+  .tab-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 22px;
+  }
+  .tab {
+    background: #1c1b2e;
+    border: 1px solid #2e2d4a;
+    border-radius: 20px;
+    padding: 7px 20px;
+    font-size: 0.85em;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { border-color: #555; color: #aaa; }
+  .tab.active {
+    border-color: #f5c842;
+    color: #f5c842;
+    background: #252440;
+    font-weight: 600;
+  }
+
+  /* Tab hint text */
+  .tab-hint {
+    text-align: center;
+    font-size: 0.75em;
+    color: #444;
+    margin-bottom: 18px;
+    min-height: 1em;
+  }
+
+  /* Combo grid */
+  .combo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 60px;
+  }
+
+  /* Cards */
+  .combo-card {
+    background: #1c1b2e;
+    border: 2px solid #2e2d4a;
+    border-radius: 9px;
+    padding: 8px 6px 6px;
+    cursor: pointer;
+    transition: border-color 0.12s, transform 0.1s, opacity 0.15s;
+    user-select: none;
+    width: 82px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    position: relative;
+  }
+  .combo-card:hover {
+    border-color: #f5c842;
+    transform: scale(1.06);
+    z-index: 1;
+  }
+
+  /* Tried state — used only in All tab */
+  .combo-card.tried {
+    opacity: 0.3;
+    border-color: #1e1e30;
+  }
+  .combo-card.tried:hover {
+    opacity: 0.6;
+    border-color: #444;
+    transform: scale(1.04);
+  }
+  .combo-card.tried .combo-label {
+    text-decoration: line-through;
+    color: #555;
+  }
+  .combo-card.tried .mini-box.on {
+    background: #333;
+    border-color: #333;
+    box-shadow: none;
+    color: #444;
+  }
+
+  .combo-number {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 0.52em;
+    color: #3a3860;
+  }
+  .combo-label {
+    font-size: 0.72em;
+    color: #f5c842;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 20px);
+    grid-template-rows: repeat(3, 20px);
+    gap: 2px;
+  }
+  .mini-box {
+    border-radius: 3px;
+    border: 1px solid #2a2a40;
+    background: #141320;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55em;
+    color: #2e2d4a;
+  }
+  .mini-box.on {
+    background: #f5c842;
+    border-color: #f5c842;
+    color: #1a1800;
+    font-weight: bold;
+    box-shadow: 0 0 5px rgba(245,200,66,0.45);
+  }
+
+  /* Empty state */
+  .empty-msg {
+    color: #333;
+    font-size: 0.85em;
+    padding: 30px 0;
+    text-align: center;
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<h1>LPQ Stage 8 — Box Tracker</h1>
+<p class="subtitle">
+  5 players stand on 5 of the 9 boxes — <b>126 possible combinations</b>.<br>
+  Box layout: <b>1 2 3</b> (top) · <b>4 5 6</b> (middle) · <b>7 8 9</b> (bottom)
+</p>
+
+<div class="layout-ref">
+  <div class="ref-block">
+    <h3>Box layout</h3>
+    <div class="ref-grid" id="ref-grid"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="stats">
+    <div class="stat-item">
+      <div class="stat-value" id="stat-untried">126</div>
+      <div class="stat-label">Untried</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="stat-tried">0</div>
+      <div class="stat-label">Tried</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="stat-pct">0%</div>
+      <div class="stat-label">Done</div>
+    </div>
+  </div>
+  <button class="btn" onclick="undoLast()">↩ Undo</button>
+  <button class="btn btn-danger" onclick="resetAll()">✕ Reset</button>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar" id="progress-bar"></div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-row">
+  <div class="tab active" onclick="setTab('all', this)">All <span id="tab-all-count">(126)</span></div>
+  <div class="tab" onclick="setTab('untried', this)">Untried <span id="tab-untried-count">(126)</span></div>
+  <div class="tab" onclick="setTab('tried', this)">Tried <span id="tab-tried-count">(0)</span></div>
+</div>
+
+<div class="tab-hint" id="tab-hint">Showing all — tried combos are dimmed. Click to toggle.</div>
+
+<div class="combo-grid" id="combo-grid"></div>
+
+<script>
+  const STORAGE_KEY = 'lpq_stage8_v4';
+  let triedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+  let history = [];
+  let currentTab = 'all';
+
+  // Reference grid
+  const refGrid = document.getElementById('ref-grid');
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement('div');
+    b.className = 'ref-box';
+    b.textContent = n;
+    refGrid.appendChild(b);
+  }
+
+  // Generate C(9,5) = 126 combinations
+  function getCombos(pool, k) {
+    const out = [];
+    function pick(start, cur) {
+      if (cur.length === k) { out.push([...cur]); return; }
+      for (let i = start; i < pool.length; i++) {
+        cur.push(pool[i]);
+        pick(i + 1, cur);
+        cur.pop();
+      }
+    }
+    pick(0, []);
+    return out;
+  }
+
+  const allCombos = getCombos([1,2,3,4,5,6,7,8,9], 5);
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...triedSet]));
+  }
+
+  function updateStats() {
+    const t = triedSet.size;
+    const u = 126 - t;
+    const pct = Math.round((t / 126) * 100);
+    document.getElementById('stat-untried').textContent = u;
+    document.getElementById('stat-tried').textContent = t;
+    document.getElementById('stat-pct').textContent = pct + '%';
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('tab-all-count').textContent = '(126)';
+    document.getElementById('tab-untried-count').textContent = '(' + u + ')';
+    document.getElementById('tab-tried-count').textContent = '(' + t + ')';
+  }
+
+  const hints = {
+    all:     'Showing all 126 — tried combos are dimmed. Click any to toggle.',
+    untried: 'Showing untried only — click a combo to mark it as tried.',
+    tried:   'Showing tried only — click a combo to move it back to untried.',
+  };
+
+  function applyView() {
+    const cards = document.querySelectorAll('.combo-card');
+    let visCount = 0;
+
+    cards.forEach(card => {
+      const isTried = triedSet.has(card.dataset.id);
+
+      // Tried styling for All tab
+      card.classList.toggle('tried', isTried);
+
+      let visible = true;
+      if (currentTab === 'untried' && isTried)  visible = false;
+      if (currentTab === 'tried'   && !isTried) visible = false;
+
+      card.style.display = visible ? '' : 'none';
+      if (visible) visCount++;
+    });
+
+    // Empty state
+    let empty = document.getElementById('empty-msg');
+    if (visCount === 0) {
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.id = 'empty-msg';
+        empty.className = 'empty-msg';
+        document.getElementById('combo-grid').appendChild(empty);
+      }
+      empty.textContent = currentTab === 'tried'
+        ? 'Nothing tried yet.'
+        : 'All combinations have been tried!';
+      empty.style.display = '';
+    } else if (empty) {
+      empty.style.display = 'none';
+    }
+
+    document.getElementById('tab-hint').textContent = hints[currentTab];
+  }
+
+  function setTab(tab, el) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    applyView();
+  }
+
+  function toggleCard(id) {
+    if (triedSet.has(id)) {
+      triedSet.delete(id);
+      history = history.filter(h => h !== id);
+    } else {
+      triedSet.add(id);
+      history.push(id);
+    }
+    save();
+    updateStats();
+    applyView();
+  }
+
+  function undoLast() {
+    if (!history.length) return;
+    const last = history.pop();
+    triedSet.delete(last);
+    save();
+    updateStats();
+    applyView();
+  }
+
+  function resetAll() {
+    if (!confirm('Reset all combinations back to untried?')) return;
+    triedSet.clear();
+    history = [];
+    save();
+    updateStats();
+    applyView();
+  }
+
+  // Build all cards
+  const grid = document.getElementById('combo-grid');
+
+  allCombos.forEach((combo, idx) => {
+    const id = combo.join('-');
+    const activeSet = new Set(combo);
+
+    const card = document.createElement('div');
+    card.className = 'combo-card';
+    card.dataset.id = id;
+
+    const numEl = document.createElement('div');
+    numEl.className = 'combo-number';
+    numEl.textContent = '#' + (idx + 1);
+
+    const label = document.createElement('div');
+    label.className = 'combo-label';
+    label.textContent = combo.join('-');
+
+    const miniGrid = document.createElement('div');
+    miniGrid.className = 'mini-grid';
+    for (let n = 1; n <= 9; n++) {
+      const box = document.createElement('div');
+      box.className = 'mini-box' + (activeSet.has(n) ? ' on' : '');
+      box.textContent = n;
+      miniGrid.appendChild(box);
+    }
+
+    card.appendChild(numEl);
+    card.appendChild(label);
+    card.appendChild(miniGrid);
+    card.addEventListener('click', () => toggleCard(id));
+    grid.appendChild(card);
+  });
+
+  updateStats();
+  applyView();
+</script>
+</body>
+</html>
