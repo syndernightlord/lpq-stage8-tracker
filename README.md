@@ -1,6 +1,6 @@
 # LPQ Stage 8 — Box Combination Tracker
 
-A simple tool for tracking box combinations during Stage 8 of the Ludibrium Party Quest in MapleStory (pre-BB / private servers like MapleRoyals).
+A simple tool for tracking box combinations during Stage 8 of LPQ.
 
 Stage 8 has 126 possible combinations (5 players on 5 of 9 boxes). This page lets you check them off as you try them so your party never repeats one.
 
